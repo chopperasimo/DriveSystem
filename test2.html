@@ -28,6 +28,8 @@ const gsiLayer = new ol.layer.Tile({
   source: new ol.source.XYZ({
     url: "https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png",
     attributions: "地理院タイル"
+    minZoom: 18,
+    maxZoom: 18
   })
 });
 
