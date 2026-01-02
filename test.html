@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="robots" content="noindex,nofollow" />
-<title>地理院地図＋GPS 5秒更新</title>
+<title>地理院地図＋GPS 1秒更新</title>
 
 <!-- OpenLayers（地理院地図用） -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v9.0.0/ol.css">
@@ -84,7 +84,7 @@ function getGPS() {
       const lon = pos.coords.longitude;
 
       document.getElementById("info").textContent =
-        `緯度:${lat.toFixed(6)} 経度:${lon.toFixed(6)}（10秒更新）`;
+        `緯度:${lat.toFixed(6)} 経度:${lon.toFixed(6)}（1秒更新）`;
 
       updateMarker(lat, lon);
     },
@@ -98,8 +98,8 @@ function getGPS() {
 // ● 初回実行
 getGPS();
 
-// ● 10秒ごとに更新（10000ms）
-setInterval(getGPS, 5000);
+// ● 1秒ごとに更新（1000ms）
+setInterval(getGPS, 1000);
 
 </script>
 
