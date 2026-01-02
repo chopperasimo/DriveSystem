@@ -1,42 +1,107 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="robots" content="noindex,nofollow" />
-  <title>GPS 位置表示 + 軌跡</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-  <style>
-    body, html { margin: 0; height: 100%; }
-    #map { width: 100%; height: 100%; }
-  </style>
+<meta charset="UTF-8">
+<meta name="robots" content="noindex,nofollow" />
+<title>地理院地図＋GPS 10秒更新</title>
+
+<!-- OpenLayers（地理院地図用） -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v9.0.0/ol.css">
+<script src="https://cdn.jsdelivr.net/npm/ol@v9.0.0/dist/ol.js"></script>
+
+<style>
+  html, body { margin:0; padding:0; height:100%; }
+  #map { width:100%; height:100vh; }
+  #info { position:absolute; top:10px; left:10px; background:white; padding:6px 10px; border-radius:6px; }
+</style>
+
 </head>
-
 <body>
-  <div id="map"></div>
 
-  <script>
-    // ▼ 地図の初期化（適当な日本中央部）
-    const map = L.map('map').setView([35.6812, 139.7671], 14);
+<div id="info">位置取得中…</div>
+<div id="map"></div>
 
-    // ▼ 地理院地図（白地図）タイル
-    L.tileLayer(
-      "https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png",
-      { maxZoom: 18, attribution: "地理院地図" }
-    ).addTo(map);
+<script>
 
-    // ▼ マーカーと軌跡用の配列
-    let marker = null;
-    let pathLatLngs = [];
-    let polyline = L.polyline([], {color: "red"}).addTo(map);
+// ● 地理院地図 標準タイル
+const gsiLayer = new ol.layer.Tile({
+  source: new ol.source.XYZ({
+    url: "https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png",
+    attributions: "地理院タイル"
+  })
+});
 
-    // ▼ 位置情報を更新する関数
-    function updateGPS() {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const lat = pos.coords.latitude;
-          const lng = pos.coords.longitude;
+// ● 地図本体
+const map = new ol.Map({
+  target: "map",
+  layers: [ gsiLayer ],
+  view: new ol.View({
+    center: ol.proj.fromLonLat([139.6917, 35.6895]), // 初期は東京
+    zoom: 10
+  })
+});
 
-          // マーカーがなければ新規作成
-          if (!marker) {
-            marker = L.m
+// ● マーカー用レイヤー
+const markerLayer = new ol.layer.Vector({
+  source: new ol.source.Vector()
+});
+map.addLayer(markerLayer);
+
+// マーカー作成または更新
+function updateMarker(lat, lon) {
+  markerLayer.getSource().clear(); // 1個だけにする
+
+  const feature = new ol.Feature({
+    geometry: new ol.geom.Point(
+      ol.proj.fromLonLat([lon, lat])
+    )
+  });
+
+  feature.setStyle(
+    new ol.style.Style({
+      image: new ol.style.Circle({
+        radius: 8,
+        fill: new ol.style.Fill({ color: "red" }),
+        stroke: new ol.style.Stroke({ color: "white", width: 2 })
+      })
+    })
+  );
+
+  markerLayer.getSource().addFeature(feature);
+
+  // 地図をマーカー位置に移動（ズームは変えない）
+  map.getView().animate({
+    center: ol.proj.fromLonLat([lon, lat]),
+    duration: 500
+  });
+}
+
+// 位置取得＋マーカー反映
+function getGPS() {
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const lat = pos.coords.latitude;
+      const lon = pos.coords.longitude;
+
+      document.getElementById("info").textContent =
+        `緯度:${lat.toFixed(6)} 経度:${lon.toFixed(6)}（10秒更新）`;
+
+      updateMarker(lat, lon);
+    },
+    err => {
+      document.getElementById("info").textContent =
+        "位置情報エラー：" + err.message;
+    }
+  );
+}
+
+// ● 初回実行
+getGPS();
+
+// ● 10秒ごとに更新（10000ms）
+setInterval(getGPS, 10000);
+
+</script>
+
+</body>
+</html>
