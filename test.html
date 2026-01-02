@@ -1,66 +1,100 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="robots" content="noindex,nofollow" />
-  <title>GPS位置情報の取得</title>
-  <style>
-    body { font-family: sans-serif; margin: 20px; }
-    #status { margin-top: 10px; color: #555; }
-  </style>
+<meta charset="UTF-8">
+<meta name="robots" content="noindex,nofollow" />
+<title>地理院地図＋GPS マーカー</title>
+
+<!-- OpenLayers（地理院地図の推奨ライブラリ） -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v9.0.0/ol.css">
+<script src="https://cdn.jsdelivr.net/npm/ol@v9.0.0/dist/ol.js"></script>
+
+<style>
+  html, body { margin:0; padding:0; height:100%; }
+  #map { width:100%; height:100vh; }
+</style>
+
 </head>
 <body>
-  <h1>GPSの緯度・経度取得</h1>
 
-  <button id="getLocationBtn">位置情報を取得</button>
+<div id="map"></div>
 
-  <div id="status"></div>
-  <div id="result">
-    <p>緯度：<span id="lat"></span></p>
-    <p>経度：<span id="lng"></span></p>
-  </div>
+<script>
 
-  <script>
-    const btn = document.getElementById("getLocationBtn");
-    const status = document.getElementById("status");
-    const latSpan = document.getElementById("lat");
-    const lngSpan = document.getElementById("lng");
+// ● 地理院地図 標準タイル
+const gsiLayer = new ol.layer.Tile({
+  source: new ol.source.XYZ({
+    url: "https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png",
+    attributions: "地理院タイル"
+  })
+});
 
-    btn.addEventListener("click", () => {
-      if (!navigator.geolocation) {
-        status.textContent = "このブラウザは位置情報取得に対応していません。";
-        return;
-      }
+// ● 地図本体
+const map = new ol.Map({
+  target: "map",
+  layers: [ gsiLayer ],
+  view: new ol.View({
+    center: ol.proj.fromLonLat([139.6917, 35.6895]), // 東京
+    zoom: 10
+  })
+});
 
-      status.textContent = "取得中…";
+// ● マーカー用レイヤー
+const markerLayer = new ol.layer.Vector({
+  source: new ol.source.Vector()
+});
+map.addLayer(markerLayer);
 
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const latitude = position.coords.latitude;
-          const longitude = position.coords.longitude;
+// マーカー作成関数
+function addMarker(lat, lon) {
+  const feature = new ol.Feature({
+    geometry: new ol.geom.Point(
+      ol.proj.fromLonLat([lon, lat])
+    )
+  });
 
-          latSpan.textContent = latitude;
-          lngSpan.textContent = longitude;
+  feature.setStyle(
+    new ol.style.Style({
+      image: new ol.style.Circle({
+        radius: 8,
+        fill: new ol.style.Fill({ color: "red" }),
+        stroke: new ol.style.Stroke({ color: "white", width: 2 })
+      })
+    })
+  );
 
-          status.textContent = "取得成功！";
-        },
-        (error) => {
-          switch (error.code) {
-            case error.PERMISSION_DENIED:
-              status.textContent = "位置情報の利用が許可されませんでした。";
-              break;
-            case error.POSITION_UNAVAILABLE:
-              status.textContent = "位置情報を取得できませんでした。";
-              break;
-            case error.TIMEOUT:
-              status.textContent = "位置情報の取得がタイムアウトしました。";
-              break;
-            default:
-              status.textContent = "未知のエラーが発生しました。";
-          }
-        }
-      );
-    });
-  </script>
+  markerLayer.getSource().clear();
+  markerLayer.getSource().addFeature(feature);
+
+  // マーカー位置へ移動
+  map.getView().animate({
+    center: ol.proj.fromLonLat([lon, lat]),
+    zoom: 15,
+    duration: 1000
+  });
+}
+
+
+// ● GPS 取得
+if (navigator.geolocation) {
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const lat = pos.coords.latitude;
+      const lon = pos.coords.longitude;
+
+      console.log("GPS:", lat, lon);
+
+      addMarker(lat, lon);
+    },
+    err => {
+      alert("位置情報が取得できません: " + err.message);
+    }
+  );
+} else {
+  alert("このブラウザは位置情報に対応していません");
+}
+
+</script>
+
 </body>
 </html>
