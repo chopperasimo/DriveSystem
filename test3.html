@@ -12,13 +12,16 @@
 <style>
   html, body { margin:0; padding:0; height:100%; }
   #map { width:100%; height:100vh; }
-  #info { 
-    position:absolute; 
-    top:10px; 
-    left:10px; 
-    background:white; 
-    padding:6px 10px; 
-    border-radius:6px; 
+
+  /* ▼ 地図の上に来るよう z-index を追加 */
+  #info {
+    position:absolute;
+    top:10px;
+    left:10px;
+    background:white;
+    padding:6px 10px;
+    border-radius:6px;
+    z-index: 1000;
   }
   #saveBtn {
     position:absolute;
@@ -30,6 +33,7 @@
     border:none;
     border-radius:6px;
     font-size:14px;
+    z-index: 1000;
   }
 </style>
 
@@ -72,10 +76,7 @@ const lineLayer = new ol.layer.Vector({
 });
 map.addLayer(lineLayer);
 
-// 軌跡データ（座標の配列）
-// 例： [[x1,y1], [x2,y2], ...]
 let positions = [];
-
 
 // マーカー更新
 function updateMarker(lat, lon) {
@@ -122,8 +123,7 @@ function updateLine() {
   lineLayer.getSource().addFeature(feature);
 }
 
-
-// 位置取得と反映
+// ▼ 位置取得と反映
 function getGPS() {
   navigator.geolocation.getCurrentPosition(
     pos => {
@@ -134,17 +134,11 @@ function getGPS() {
         `緯度:${lat.toFixed(6)} 経度:${lon.toFixed(6)}（2.5秒更新）`;
 
       const coord = ol.proj.fromLonLat([lon, lat]);
-
-      // 軌跡配列に追加
       positions.push(coord);
 
-      // マーカー更新
       updateMarker(lat, lon);
-
-      // 軌跡更新
       updateLine();
 
-      // 地図移動
       map.getView().animate({
         center: coord,
         duration: 500
@@ -157,16 +151,13 @@ function getGPS() {
   );
 }
 
-// ● 初回実行
+// 初回
 getGPS();
 
-// ● 2.5秒ごとに更新
+// 2.5 秒ごと更新
 setInterval(getGPS, 2500);
 
-
-// ================================
-// ▼ 軌跡を txt で保存する
-// ================================
+// ▼ 軌跡を txt で保存
 document.getElementById("saveBtn").onclick = function () {
 
   if (positions.length === 0) {
@@ -174,7 +165,6 @@ document.getElementById("saveBtn").onclick = function () {
     return;
   }
 
-  // 現在時刻でファイル名作成
   const now = new Date();
   const timestamp =
     now.getFullYear() + "-" +
@@ -186,24 +176,20 @@ document.getElementById("saveBtn").onclick = function () {
 
   const filename = `trajectory_${timestamp}.txt`;
 
-  // 書き出すテキスト生成（lon,lat の形式に戻す）
   let text = "";
   for (const p of positions) {
     const lonlat = ol.proj.toLonLat(p);
     text += `${lonlat[1]},${lonlat[0]}\n`; // Lat,Lon
   }
 
-  // ダウンロード用 Blob 作成
   const blob = new Blob([text], { type: "text/plain" });
   const url = URL.createObjectURL(blob);
 
-  // 自動ダウンロード
   const a = document.createElement("a");
   a.href = url;
   a.download = filename;
   a.click();
 
-  // 解除
   URL.revokeObjectURL(url);
 };
 
