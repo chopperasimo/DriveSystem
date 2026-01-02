@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="robots" content="noindex,nofollow" />
+<title>位置表示テスト</title>
+
+<!-- OpenLayers（地理院地図用） -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v9.0.0/ol.css">
+<script src="https://cdn.jsdelivr.net/npm/ol@v9.0.0/dist/ol.js"></script>
+
+<style>
+  html, body { margin:0; padding:0; height:100%; }
+  #map { width:100%; height:100vh; }
+  #info { 
+    position:absolute; 
+    top:10px; 
+    left:10px; 
+    background:white; 
+    padding:6px 10px; 
+    border-radius:6px; 
+  }
+  #saveBtn {
+    position:absolute;
+    top:60px;
+    left:10px;
+    padding:6px 12px;
+    background:#007bff;
+    color:white;
+    border:none;
+    border-radius:6px;
+    font-size:14px;
+  }
+</style>
+
+</head>
+<body>
+
+<div id="info">位置取得中…</div>
+<button id="saveBtn">軌跡を保存（txt）</button>
+<div id="map"></div>
+
+<script>
+
+// ● 地理院地図 標準タイル
+const gsiLayer = new ol.layer.Tile({
+  source: new ol.source.XYZ({
+    url: "https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png",
+    attributions: "地理院タイル"
+  })
+});
+
+// ● 地図本体
+const map = new ol.Map({
+  target: "map",
+  layers: [ gsiLayer ],
+  view: new ol.View({
+    center: ol.proj.fromLonLat([139.6917, 35.6895]),
+    zoom: 18
+  })
+});
+
+// ● マーカー用レイヤー
+const markerLayer = new ol.layer.Vector({
+  source: new ol.source.Vector()
+});
+map.addLayer(markerLayer);
+
+// ● 軌跡用レイヤー
+const lineLayer = new ol.layer.Vector({
+  source: new ol.source.Vector()
+});
+map.addLayer(lineLayer);
+
+// 軌跡データ（座標の配列）
+// 例： [[x1,y1], [x2,y2], ...]
+let positions = [];
+
+
+// マーカー更新
+function updateMarker(lat, lon) {
+  markerLayer.getSource().clear();
+
+  const feature = new ol.Feature({
+    geometry: new ol.geom.Point(
+      ol.proj.fromLonLat([lon, lat])
+    )
+  });
+
+  feature.setStyle(
+    new ol.style.Style({
+      image: new ol.style.Circle({
+        radius: 8,
+        fill: new ol.style.Fill({ color: "red" }),
+        stroke: new ol.style.Stroke({ color: "white", width: 2 })
+      })
+    })
+  );
+
+  markerLayer.getSource().addFeature(feature);
+}
+
+// 軌跡ライン描画
+function updateLine() {
+  if (positions.length < 2) return;
+
+  lineLayer.getSource().clear();
+
+  const line = new ol.geom.LineString(positions);
+
+  const feature = new ol.Feature({ geometry: line });
+
+  feature.setStyle(
+    new ol.style.Style({
+      stroke: new ol.style.Stroke({
+        color: "blue",
+        width: 3
+      })
+    })
+  );
+
+  lineLayer.getSource().addFeature(feature);
+}
+
+
+// 位置取得と反映
+function getGPS() {
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const lat = pos.coords.latitude;
+      const lon = pos.coords.longitude;
+
+      document.getElementById("info").textContent =
+        `緯度:${lat.toFixed(6)} 経度:${lon.toFixed(6)}（2.5秒更新）`;
+
+      const coord = ol.proj.fromLonLat([lon, lat]);
+
+      // 軌跡配列に追加
+      positions.push(coord);
+
+      // マーカー更新
+      updateMarker(lat, lon);
+
+      // 軌跡更新
+      updateLine();
+
+      // 地図移動
+      map.getView().animate({
+        center: coord,
+        duration: 500
+      });
+    },
+    err => {
+      document.getElementById("info").textContent =
+        "位置情報エラー：" + err.message;
+    }
+  );
+}
+
+// ● 初回実行
+getGPS();
+
+// ● 2.5秒ごとに更新
+setInterval(getGPS, 2500);
+
+
+// ================================
+// ▼ 軌跡を txt で保存する
+// ================================
+document.getElementById("saveBtn").onclick = function () {
+
+  if (positions.length === 0) {
+    alert("軌跡データがありません。");
+    return;
+  }
+
+  // 現在時刻でファイル名作成
+  const now = new Date();
+  const timestamp =
+    now.getFullYear() + "-" +
+    String(now.getMonth()+1).padStart(2, '0') + "-" +
+    String(now.getDate()).padStart(2, '0') + "_" +
+    String(now.getHours()).padStart(2,'0') +
+    String(now.getMinutes()).padStart(2,'0') +
+    String(now.getSeconds()).padStart(2,'0');
+
+  const filename = `trajectory_${timestamp}.txt`;
+
+  // 書き出すテキスト生成（lon,lat の形式に戻す）
+  let text = "";
+  for (const p of positions) {
+    const lonlat = ol.proj.toLonLat(p);
+    text += `${lonlat[1]},${lonlat[0]}\n`; // Lat,Lon
+  }
+
+  // ダウンロード用 Blob 作成
+  const blob = new Blob([text], { type: "text/plain" });
+  const url = URL.createObjectURL(blob);
+
+  // 自動ダウンロード
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+
+  // 解除
+  URL.revokeObjectURL(url);
+};
+
+</script>
+</body>
+</html>
