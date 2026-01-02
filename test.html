@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="robots" content="noindex,nofollow" />
+  <title>GPS位置情報の取得</title>
+  <style>
+    body { font-family: sans-serif; margin: 20px; }
+    #status { margin-top: 10px; color: #555; }
+  </style>
+</head>
+<body>
+  <h1>GPSの緯度・経度取得</h1>
+
+  <button id="getLocationBtn">位置情報を取得</button>
+
+  <div id="status"></div>
+  <div id="result">
+    <p>緯度：<span id="lat"></span></p>
+    <p>経度：<span id="lng"></span></p>
+  </div>
+
+  <script>
+    const btn = document.getElementById("getLocationBtn");
+    const status = document.getElementById("status");
+    const latSpan = document.getElementById("lat");
+    const lngSpan = document.getElementById("lng");
+
+    btn.addEventListener("click", () => {
+      if (!navigator.geolocation) {
+        status.textContent = "このブラウザは位置情報取得に対応していません。";
+        return;
+      }
+
+      status.textContent = "取得中…";
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const latitude = position.coords.latitude;
+          const longitude = position.coords.longitude;
+
+          latSpan.textContent = latitude;
+          lngSpan.textContent = longitude;
+
+          status.textContent = "取得成功！";
+        },
+        (error) => {
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              status.textContent = "位置情報の利用が許可されませんでした。";
+              break;
+            case error.POSITION_UNAVAILABLE:
+              status.textContent = "位置情報を取得できませんでした。";
+              break;
+            case error.TIMEOUT:
+              status.textContent = "位置情報の取得がタイムアウトしました。";
+              break;
+            default:
+              status.textContent = "未知のエラーが発生しました。";
+          }
+        }
+      );
+    });
+  </script>
+</body>
+</html>
